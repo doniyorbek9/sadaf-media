@@ -185,6 +185,14 @@ def get_user_orders(user_id):
 
 def get_all_users_from_orders():
     seen = {}
+    # users.json dan
+    for uid_str, u in load_users().items():
+        try:
+            uid = int(uid_str)
+            seen[uid] = u.get("user_name", uid_str)
+        except Exception:
+            pass
+    # orders.json dan (ustiga yozilsin)
     for o in load_orders():
         uid = o.get("user_id")
         if uid and uid not in seen:
@@ -925,6 +933,14 @@ def handle_admin_message(cid, text, message):
         show_admin_panel(cid)
         return
 
+    if step == "admin_promo":
+        if text == "⬅️ Ortga":
+            show_admin_panel(cid)
+            return
+        if text in ("➕ Yangi kod yaratish", "🗑 Kodni o'chirish"):
+            handle_promo_panel_buttons(cid, text)
+            return
+
     if step == "admin_promo_create":
         if text in ("⬅️ Ortga", "Ortga"):
             show_promo_panel(cid)
@@ -1019,7 +1035,7 @@ def handle_admin_message(cid, text, message):
 
 
 def show_promo_panel(cid):
-    user_data[cid] = {"step": "admin"}
+    user_data[cid] = {"step": "admin_promo"}
     promos = load_promos()
     if promos:
         lines = "\n".join([
