@@ -355,7 +355,10 @@ def show_order_detail(cid, oid):
     markup.add(types.InlineKeyboardButton("⬅️ Ortga", callback_data="back_orders"))
     if o.get("joy_lat") and o.get("joy_lon"):
         bot.send_location(cid, o["joy_lat"], o["joy_lon"])
-    bot.send_message(cid, text, parse_mode="Markdown", reply_markup=markup)
+    try:
+        bot.send_message(cid, text, parse_mode="Markdown", reply_markup=markup)
+    except Exception:
+        bot.send_message(cid, text, reply_markup=markup)
 
 
 def show_users_list(cid):
@@ -1229,11 +1232,18 @@ def finalize(cid, state):
         types.KeyboardButton("🔄 Yangi buyurtma"),
         types.KeyboardButton("📋 Buyurtmalarim")
     )
-    bot.send_message(cid,
-        summary + "\n✅ *Buyurtmangiz qabul qilindi!*\n"
-        "Tez orada menejerimiz siz bilan bog'lanadi. 🎉\n"
-        "Qo'shimcha ma'lumot uchun:\nAdmin @doniyorbekgulomov0\nNomer📞 +998974787478",
-        parse_mode="Markdown", reply_markup=markup)
+    try:
+        bot.send_message(cid,
+            summary + "\n✅ *Buyurtmangiz qabul qilindi!*\n"
+            "Tez orada menejerimiz siz bilan bog'lanadi. 🎉\n"
+            "Qo'shimcha ma'lumot uchun:\nAdmin @doniyorbekgulomov0\nNomer📞 +998974787478",
+            parse_mode="Markdown", reply_markup=markup)
+    except Exception:
+        bot.send_message(cid,
+            summary + "\n✅ Buyurtmangiz qabul qilindi!\n"
+            "Tez orada menejerimiz siz bilan bog'lanadi.\n"
+            "Qo'shimcha ma'lumot uchun:\nAdmin @doniyorbekgulomov0\nNomer +998974787478",
+            reply_markup=markup)
 
     try:
         chat      = bot.get_chat(cid)
