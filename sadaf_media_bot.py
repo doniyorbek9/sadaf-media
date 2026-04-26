@@ -723,6 +723,9 @@ def handle_message(message):
         ask_xizmat(cid)
 
     elif step == "xizmat":
+        if text == "⬅️ Ortga":
+            ask_telefon_first(cid)
+            return
         if text not in XIZMATLAR:
             bot.send_message(cid, "Iltimos, quyidagi tugmalardan birini tanlang ⬇️")
             return
@@ -731,41 +734,84 @@ def handle_message(message):
             state["step"] = "toy_turi"
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
             markup.add(*[types.KeyboardButton(x) for x in TOY_TURLARI])
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
             bot.send_message(cid, f"✅ *{text}* tanlandi!\n\nQanday toy turi?",
                              parse_mode="Markdown", reply_markup=markup)
         elif text == "📸 Foto sessiya":
             state["skip_qoshimcha"] = True
             state["step"] = "sana"
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
             bot.send_message(cid,
                 f"✅ *{text}* tanlandi! — {fmt(XIZMAT_NARX[text])}\n\n📅 Tadbir sanasini kiriting:",
-                parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
+                parse_mode="Markdown", reply_markup=markup)
         else:
             state["step"] = "sana"
             narx_text = f" — {fmt(XIZMAT_NARX[text])}" if text in XIZMAT_NARX else ""
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
             bot.send_message(cid,
                 f"✅ *{text}* tanlandi!{narx_text}\n\n📅 Tadbir sanasini kiriting:\n_(Masalan: 5-may-2026)_",
-                parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
+                parse_mode="Markdown", reply_markup=markup)
 
     elif step == "toy_turi":
+        if text == "⬅️ Ortga":
+            state["step"] = "xizmat"
+            state.pop("xizmat", None)
+            ask_xizmat(cid)
+            return
         if text not in TOY_TURLARI:
             bot.send_message(cid, "Iltimos, tugmalardan birini tanlang ⬇️")
             return
         state["toy_turi"] = text
         state["step"]     = "sana"
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.KeyboardButton("⬅️ Ortga"))
         bot.send_message(cid,
             f"✅ *{text}* tanlandi! — {fmt(TOY_NARX.get(text, 0))}\n\n📅 Tadbir sanasini kiriting:",
-            parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
+            parse_mode="Markdown", reply_markup=markup)
 
     elif step == "sana":
+        if text == "⬅️ Ortga":
+            toy_turi = state.get("toy_turi")
+            state["step"] = "toy_turi" if state.get("xizmat") == "🎬 Toy videosi" else "xizmat"
+            state.pop("toy_turi", None)
+            if state["step"] == "toy_turi":
+                markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+                markup.add(*[types.KeyboardButton(x) for x in TOY_TURLARI])
+                markup.add(types.KeyboardButton("⬅️ Ortga"))
+                bot.send_message(cid, "Qanday toy turi?", reply_markup=markup)
+            else:
+                ask_xizmat(cid)
+            return
         state["sana"] = text
         state["step"] = "joy"
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(types.KeyboardButton("📍 Lokatsiya yuborish", request_location=True))
+        markup.add(types.KeyboardButton("⬅️ Ortga"))
         bot.send_message(cid,
             f"📅 Sana: *{text}*\n\n📍 Tadbir qayerda bo'ladi?\nLokatsiya yuboring:",
             parse_mode="Markdown", reply_markup=markup)
 
+    elif step == "joy":
+        if text == "⬅️ Ortga":
+            state["step"] = "sana"
+            state.pop("sana", None)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
+            bot.send_message(cid, "📅 Tadbir sanasini kiriting:\n_(Masalan: 5-may-2026)_",
+                             reply_markup=markup)
+            return
+
     elif step == "joy_text":
+        if text == "⬅️ Ortga":
+            state["step"] = "sana"
+            state.pop("sana", None)
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
+            bot.send_message(cid, "📅 Tadbir sanasini kiriting:\n_(Masalan: 5-may-2026)_",
+                             reply_markup=markup)
+            return
         state["joy_text"] = text
         if state.get("skip_qoshimcha"):
             ask_promo(cid, state)
@@ -773,6 +819,18 @@ def handle_message(message):
             ask_qoshimcha(cid, state)
 
     elif step == "qoshimcha_confirm":
+        if text == "⬅️ Ortga":
+            state["step"] = "joy_text"
+            state.pop("joy_text", None)
+            state.pop("joy_lat", None)
+            state.pop("joy_lon", None)
+            state["qoshimcha"] = []
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            markup.add(types.KeyboardButton("📍 Lokatsiya yuborish", request_location=True))
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
+            bot.send_message(cid, "📍 Tadbir qayerda bo'ladi?\nLokatsiya yuboring:",
+                             reply_markup=markup)
+            return
         if text == "✅ Shu yetarli":
             ask_promo(cid, state)
         elif text == "➕ Yana xizmat qo'shish":
@@ -781,6 +839,18 @@ def handle_message(message):
             bot.send_message(cid, "Iltimos, tugmalardan birini tanlang ⬇️")
 
     elif step == "qoshimcha":
+        if text == "⬅️ Ortga":
+            state["step"] = "joy_text"
+            state.pop("joy_text", None)
+            state.pop("joy_lat", None)
+            state.pop("joy_lon", None)
+            state["qoshimcha"] = []
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+            markup.add(types.KeyboardButton("📍 Lokatsiya yuborish", request_location=True))
+            markup.add(types.KeyboardButton("⬅️ Ortga"))
+            bot.send_message(cid, "📍 Tadbir qayerda bo'ladi?\nLokatsiya yuboring:",
+                             reply_markup=markup)
+            return
         is_toy    = state.get("xizmat") == "🎬 Toy videosi"
         qlist     = TOY_QOSHIMCHA_LIST if is_toy else QOSHIMCHA_LIST
         available = [x for x in qlist if x not in state["qoshimcha"]]
@@ -796,11 +866,16 @@ def handle_message(message):
             types.KeyboardButton("➕ Yana xizmat qo'shish"),
             types.KeyboardButton("✅ Shu yetarli")
         )
+        markup.add(types.KeyboardButton("⬅️ Ortga"))
         bot.send_message(cid,
             f"✅ *{text}* qo'shildi! — {fmt(narx)}\n\nYana qo'shimcha xizmat kerakmi?",
             parse_mode="Markdown", reply_markup=markup)
 
     elif step == "promo":
+        if text == "⬅️ Ortga":
+            state["qoshimcha"] = []
+            ask_qoshimcha(cid, state)
+            return
         if text == "⏭ O'tkazib yuborish":
             state.pop("promo_kod", None)
             state.pop("chegirma_foiz", None)
@@ -1088,8 +1163,9 @@ def ask_qoshimcha(cid, state):
 
 def ask_promo(cid, state):
     state["step"] = "promo"
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
     markup.add(types.KeyboardButton("⏭ O'tkazib yuborish"))
+    markup.add(types.KeyboardButton("⬅️ Ortga"))
     bot.send_message(cid,
         "🎁 *Promo kodingiz bormi?*\n\nKodni kiriting yoki o'tkazib yuboring:",
         parse_mode="Markdown", reply_markup=markup)
