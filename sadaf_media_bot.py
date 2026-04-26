@@ -35,7 +35,11 @@ TOY_NARX = {
     "💍 Nikoh": 700_000, "🍽 Banket": 700_000, "✂️ Xatna": 700_000,
     "👶 Chaqaloq": 500_000, "🕌 Haj/Umra": 500_000, "🎂 Tug'ilgan kun": 500_000,
 }
-XIZMAT_NARX = {"📸 Foto sessiya": 500_000}
+XIZMAT_NARX = {
+    "📸 Foto sessiya": 500_000,
+    "📢 Reklama video": 700_000,
+    "🏢 Korporativ video": 500_000,
+}
 TOY_QOSHIMCHA_NARX = {
     "📷 Fotograf": 200_000, "🏗 Kran": 1_000_000,
     "📅 Yana bir kun": 700_000, "🎥 +1 Kamera": 700_000,
@@ -706,8 +710,9 @@ def handle_message(message):
                 parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
         else:
             state["step"] = "sana"
+            narx_text = f" — {fmt(XIZMAT_NARX[text])}" if text in XIZMAT_NARX else ""
             bot.send_message(cid,
-                f"✅ *{text}* tanlandi!\n\n📅 Tadbir sanasini kiriting:\n_(Masalan: 5-may-2026)_",
+                f"✅ *{text}* tanlandi!{narx_text}\n\n📅 Tadbir sanasini kiriting:\n_(Masalan: 5-may-2026)_",
                 parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
 
     elif step == "toy_turi":
