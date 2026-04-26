@@ -22,6 +22,7 @@ BOT_TOKEN = "8213889849:AAHqpH_BGU0iaWns8YMW1j5hg7wbNJfd0Ao"
 MANAGER_CHAT_ID = 7948989650
 ORDERS_FILE = "orders.json"
 USERS_FILE  = "users.json"
+PROMO_FILE  = "promo_codes.json"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -49,6 +50,35 @@ QOSHIMCHA_NARX = {"📷 Fotograf": 200_000, "🏗 Kran": 1_000_000}
 
 def fmt(n):
     return f"{n:,}".replace(",", " ") + " so'm"
+
+
+# ══════════════════════════════════════════════
+#  PROMO KODLAR
+# ══════════════════════════════════════════════
+
+def load_promos():
+    if not os.path.exists(PROMO_FILE):
+        return {}
+    with open(PROMO_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_promos(data):
+    with open(PROMO_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def get_promo(code):
+    promos = load_promos()
+    return promos.get(code.upper().strip())
+
+def use_promo(code):
+    promos = load_promos()
+    key = code.upper().strip()
+    if key in promos and promos[key].get("active", True):
+        if promos[key].get("bir_marta"):
+            promos[key]["active"] = False
+            save_promos(promos)
+        return promos[key]
+    return None
 
 
 # ══════════════════════════════════════════════
@@ -271,6 +301,7 @@ def show_admin_panel(cid):
         types.KeyboardButton("📤 Excel eksport"),
         types.KeyboardButton("📢 Broadcast"),
         types.KeyboardButton("💬 Chat"),
+        types.KeyboardButton("🎁 Promo kodlar"),
     )
     bot.send_message(cid, "👨‍💼 *Admin panel*\n\nNimani ko'rmoqchisiz?",
                      parse_mode="Markdown", reply_markup=markup)
@@ -737,13 +768,13 @@ def handle_message(message):
     elif step == "joy_text":
         state["joy_text"] = text
         if state.get("skip_qoshimcha"):
-            finalize(cid, state)
+            ask_promo(cid, state)
         else:
             ask_qoshimcha(cid, state)
 
     elif step == "qoshimcha_confirm":
         if text == "✅ Shu yetarli":
-            finalize(cid, state)
+            ask_promo(cid, state)
         elif text == "➕ Yana xizmat qo'shish":
             ask_qoshimcha(cid, state)
         else:
@@ -768,6 +799,24 @@ def handle_message(message):
         bot.send_message(cid,
             f"✅ *{text}* qo'shildi! — {fmt(narx)}\n\nYana qo'shimcha xizmat kerakmi?",
             parse_mode="Markdown", reply_markup=markup)
+
+    elif step == "promo":
+        if text == "⏭ O'tkazib yuborish":
+            state.pop("promo_kod", None)
+            state.pop("chegirma_foiz", None)
+            finalize(cid, state)
+        else:
+            promo = get_promo(text)
+            if promo and promo.get("active"):
+                state["promo_kod"] = text.upper().strip()
+                state["chegirma_foiz"] = promo["foiz"]
+                bot.send_message(cid,
+                    f"🎉 *{text.upper()}* kodi qabul qilindi!\n💸 Chegirma: *{promo['foiz']}%*\n\nBuyurtma rasmiylashtirilmoqda...",
+                    parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
+                finalize(cid, state)
+            else:
+                bot.send_message(cid,
+                    "❌ Bu promo kod mavjud emas yoki muddati tugagan.\n\nQaytadan kiriting yoki o'tkazib yuboring:")
 
     else:
         ask_telefon_first(cid)
@@ -801,7 +850,46 @@ def handle_admin_message(cid, text, message):
         show_admin_panel(cid)
         return
 
-    if step == "admin_edit_narx":
+    if step == "admin_promo_create":
+        if text in ("⬅️ Ortga", "Ortga"):
+            show_promo_panel(cid)
+            return
+        # Format: KOD:FOIZ  masalan SADAF10:10
+        parts = text.upper().strip().split(":")
+        if len(parts) != 2 or not parts[1].isdigit():
+            bot.send_message(cid,
+                "❌ Noto'g'ri format!\n\nTo'g'ri format: *KOD:FOIZ*\nMasalan: `SADAF10:10`",
+                parse_mode="Markdown")
+            return
+        kod, foiz = parts[0], int(parts[1])
+        if foiz <= 0 or foiz > 100:
+            bot.send_message(cid, "❌ Foiz 1 dan 100 gacha bo'lishi kerak!")
+            return
+        promos = load_promos()
+        promos[kod] = {"foiz": foiz, "active": True, "bir_marta": False}
+        save_promos(promos)
+        bot.send_message(cid,
+            f"✅ *Promo kod yaratildi!*\n\n🎁 Kod: `{kod}`\n💸 Chegirma: *{foiz}%*",
+            parse_mode="Markdown")
+        show_promo_panel(cid)
+        return
+
+    if step == "admin_promo_delete":
+        if text in ("⬅️ Ortga", "Ortga"):
+            show_promo_panel(cid)
+            return
+        kod = text.upper().strip()
+        promos = load_promos()
+        if kod in promos:
+            del promos[kod]
+            save_promos(promos)
+            bot.send_message(cid, f"🗑 *{kod}* kodi o'chirildi.", parse_mode="Markdown")
+        else:
+            bot.send_message(cid, f"❌ *{kod}* kodi topilmadi.", parse_mode="Markdown")
+        show_promo_panel(cid)
+        return
+
+
         if text in ("⬅️ Ortga", "Ortga"):
             show_admin_panel(cid)
             return
@@ -845,13 +933,59 @@ def handle_admin_message(cid, text, message):
         start_broadcast(cid)
     elif text == "💬 Chat":
         show_chat_users(cid)
+    elif text == "🎁 Promo kodlar":
+        show_promo_panel(cid)
+    elif text in ("➕ Yangi kod yaratish", "🗑 Kodni o'chirish"):
+        handle_promo_panel_buttons(cid, text)
     elif text in ("⬅️ Ortga", "/start"):
         show_admin_panel(cid)
     else:
         show_admin_panel(cid)
 
 
-def show_chat_users(cid):
+def show_promo_panel(cid):
+    user_data[cid] = {"step": "admin"}
+    promos = load_promos()
+    if promos:
+        lines = "\n".join([
+            f"  {'✅' if v.get('active') else '❌'} `{k}` — {v['foiz']}% chegirma"
+            for k, v in promos.items()
+        ])
+        text = f"🎁 *Promo kodlar:*\n\n{lines}"
+    else:
+        text = "🎁 *Promo kodlar:*\n\nHozircha kodlar yo'q."
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    markup.add(
+        types.KeyboardButton("➕ Yangi kod yaratish"),
+        types.KeyboardButton("🗑 Kodni o'chirish"),
+        types.KeyboardButton("⬅️ Ortga"),
+    )
+    bot.send_message(cid, text, parse_mode="Markdown", reply_markup=markup)
+
+
+def handle_promo_panel_buttons(cid, text):
+    if text == "➕ Yangi kod yaratish":
+        user_data[cid] = {"step": "admin_promo_create"}
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.KeyboardButton("⬅️ Ortga"))
+        bot.send_message(cid,
+            "✏️ Yangi promo kodni quyidagi formatda yozing:\n\n"
+            "*KOD:FOIZ*\n\nMasalan: `SADAF10:10`\n_(10% chegirma beradi)_",
+            parse_mode="Markdown", reply_markup=markup)
+    elif text == "🗑 Kodni o'chirish":
+        promos = load_promos()
+        if not promos:
+            bot.send_message(cid, "❌ O'chirish uchun kodlar yo'q.")
+            return
+        user_data[cid] = {"step": "admin_promo_delete"}
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+        for k in promos:
+            markup.add(types.KeyboardButton(k))
+        markup.add(types.KeyboardButton("⬅️ Ortga"))
+        bot.send_message(cid, "🗑 Qaysi kodni o'chirmoqchisiz?", reply_markup=markup)
+
+
+
     users_dict = get_all_users_from_orders()
     if not users_dict:
         bot.send_message(cid, "👤 Hozircha foydalanuvchilar yo'q.")
@@ -952,7 +1086,16 @@ def ask_qoshimcha(cid, state):
         parse_mode="Markdown", reply_markup=markup)
 
 
-def finalize(cid, state):
+def ask_promo(cid, state):
+    state["step"] = "promo"
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("⏭ O'tkazib yuborish"))
+    bot.send_message(cid,
+        "🎁 *Promo kodingiz bormi?*\n\nKodni kiriting yoki o'tkazib yuboring:",
+        parse_mode="Markdown", reply_markup=markup)
+
+
+
     toy_turi        = state.get("toy_turi", "")
     xizmat          = state.get("xizmat", "—")
     qoshimcha_list  = state.get("qoshimcha", [])
@@ -961,6 +1104,10 @@ def finalize(cid, state):
     asosiy_narx     = TOY_NARX.get(toy_turi, 0) if toy_turi else XIZMAT_NARX.get(xizmat, 0)
     qoshimcha_jami  = sum(narx_map.get(x, 0) for x in qoshimcha_list)
     jami            = asosiy_narx + qoshimcha_jami
+    chegirma_foiz   = state.get("chegirma_foiz", 0)
+    promo_kod       = state.get("promo_kod", "")
+    chegirma_summa  = int(jami * chegirma_foiz / 100) if chegirma_foiz else 0
+    jami_chegirma   = jami - chegirma_summa
     xizmat_str      = xizmat + (f" ({toy_turi})" if toy_turi else "")
     q_lines         = "\n".join([f"  • {x}: {fmt(narx_map.get(x,0))}" for x in qoshimcha_list]) or "  Yo'q"
 
@@ -969,7 +1116,11 @@ def finalize(cid, state):
         narx_blok = f"\n💰 *Narx hisobi:*\n  • Asosiy xizmat: {fmt(asosiy_narx)}\n"
         for x in qoshimcha_list:
             narx_blok += f"  • {x}: {fmt(narx_map.get(x,0))}\n"
-        narx_blok += f"  ➖➖➖➖➖➖➖\n  💵 *Jami: {fmt(jami)}*\n"
+        if chegirma_foiz:
+            narx_blok += f"  🎁 Promo `{promo_kod}` chegirma ({chegirma_foiz}%): -{fmt(chegirma_summa)}\n"
+            narx_blok += f"  ➖➖➖➖➖➖➖\n  💵 *Jami: {fmt(jami_chegirma)}* _(chegirmadan keyin)_\n"
+        else:
+            narx_blok += f"  ➖➖➖➖➖➖➖\n  💵 *Jami: {fmt(jami)}*\n"
 
     summary = (
         "📋 *Buyurtma xulosasi:*\n\n"
@@ -1017,11 +1168,15 @@ def finalize(cid, state):
         "qoshimcha_str": q_lines,
         "telefon":       state.get("telefon", "—"),
         "narx_blok":     narx_blok,
-        "jami":          jami,
+        "jami":          jami_chegirma if chegirma_foiz else jami,
+        "promo_kod":     promo_kod if promo_kod else None,
         "vaqt":          datetime.now().strftime("%d.%m.%Y %H:%M"),
     }
     orders.append(order_obj)
     save_orders(orders)
+
+    if promo_kod:
+        use_promo(promo_kod)
 
     try:
         bot.send_message(MANAGER_CHAT_ID,
