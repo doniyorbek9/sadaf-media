@@ -889,7 +889,7 @@ def handle_admin_message(cid, text, message):
         show_promo_panel(cid)
         return
 
-
+    if step == "admin_edit_narx":
         if text in ("⬅️ Ortga", "Ortga"):
             show_admin_panel(cid)
             return
