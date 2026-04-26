@@ -1187,7 +1187,7 @@ def ask_promo(cid, state):
         parse_mode="Markdown", reply_markup=markup)
 
 
-
+def finalize(cid, state):
     toy_turi        = state.get("toy_turi", "")
     xizmat          = state.get("xizmat", "—")
     qoshimcha_list  = state.get("qoshimcha", [])
