@@ -1060,7 +1060,7 @@ def handle_promo_panel_buttons(cid, text):
         bot.send_message(cid, "🗑 Qaysi kodni o'chirmoqchisiz?", reply_markup=markup)
 
 
-
+def show_chat_users(cid):
     users_dict = get_all_users_from_orders()
     if not users_dict:
         bot.send_message(cid, "👤 Hozircha foydalanuvchilar yo'q.")
