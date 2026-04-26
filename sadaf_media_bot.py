@@ -1027,8 +1027,6 @@ def handle_admin_message(cid, text, message):
         start_broadcast(cid)
     elif text == "💬 Chat":
         show_chat_users(cid)
-    elif text == "🎁 Promo kodlar":
-        show_promo_panel(cid)
     elif text in ("➕ Yangi kod yaratish", "🗑 Kodni o'chirish"):
         handle_promo_panel_buttons(cid, text)
     elif text in ("⬅️ Ortga", "/start"):
