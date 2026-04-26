@@ -814,7 +814,7 @@ def handle_message(message):
             return
         state["joy_text"] = text
         if state.get("skip_qoshimcha"):
-            ask_promo(cid, state)
+            finalize(cid, state)
         else:
             ask_qoshimcha(cid, state)
 
@@ -832,7 +832,7 @@ def handle_message(message):
                              reply_markup=markup)
             return
         if text == "✅ Shu yetarli":
-            ask_promo(cid, state)
+            finalize(cid, state)
         elif text == "➕ Yana xizmat qo'shish":
             ask_qoshimcha(cid, state)
         else:
